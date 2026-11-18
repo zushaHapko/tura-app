@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ÖsvényNapló – Modern Túra App</title>
+    
+    <!-- Leaflet.js CSS és JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root {
+            --bg-outer: #e3e8df;
+            --bg-app: #f6f8f4;
+            --bg-card: #ffffff;
+            --primary: #2e6b4e;       /* Mély erdőzöld */
+            --primary-soft: #e4efe9;  /* Lágy zsálya */
+            --primary-dark: #204d37;
+            --accent: #e08e45;        /* Meleg borostyán */
+            --accent-soft: #fdf0e4;
+            --text-dark: #1d2922;
+            --text-muted: #68786e;
+            --border: #e1e8e2;
+            --danger: #d64545;
+            --radius-xl: 26px;
+            --radius-lg: 20px;
+            --radius-md: 16px;
+            --shadow-soft: 0 8px 24px rgba(29, 41, 34, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-outer);
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .app-shell {
+            width: 100%;
+            max-width: 480px;
+            background-color: var(--bg-app);
+            min-height: 100vh;
+            position: relative;
+            padding-bottom: 96px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+            overflow-x: hidden;
+        }
+
+        .app-header {
+            background: linear-gradient(145deg, #2e6b4e 0%, #448a68 100%);
+            color: white;
+            padding: 24px 20px 32px;
+            border-bottom-left-radius: 32px;
+            border-bottom-right-radius: 32px;
+            box-shadow: 0 6px 20px rgba(46, 107, 78, 0.2);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .app-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 46px;
+            height: 46px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(6px);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: white;
+            stroke-width: 2.2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .brand-text h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+        }
+
+        .brand-text p {
+            font-size: 0.78rem;
+            opacity: 0.85;
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .hero-stat-pill {
+            background: rgba(255, 255, 255, 0.16);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 20px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hero-stat-icon {
+            width: 38px;
+            height: 38px;
+            background: white;
+            color: var(--primary);
+            border-radius: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .hero-stat-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--primary);
+            stroke-width: 2.2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .hero-stat-val {
+            font-size: 1.15rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .hero-stat-lbl {
+            font-size: 0.72rem;
+            opacity: 0.9;
+        }
+
+        .tab-view {
+            display: none;
+            padding: 18px 16px;
+            animation: fadeIn 0.22s ease;
+        }
+
+        .tab-view.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-heading {
+            font-size: 1.1rem;
+            font-weight: 800;
+            margin-bottom: 14px;
+            color: var(--text-dark);
+            padding-left: 4px;
+        }
+
+        .app-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border);
+        }
+
+        #liveMap {
+            width: 100%;
+            height: 290px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 14px;
+            z-index: 1;
+            border: 1px solid var(--border);
+        }
+
+        .live-readout {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .live-km-big {
+            font-size: 2.3rem;
+            font-weight: 900;
+            color: var(--primary);
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .live-sub {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .big-icon-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .squircle-btn {
+            background: var(--bg-app);
+            border: 2px solid transparent;
+            border-radius: 24px;
+            padding: 14px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: transform 0.15s, background-color 0.2s;
+        }
+
+        .squircle-btn:active { transform: scale(0.95); }
+
+        .squircle-icon-box {
+            width: 54px;
+            height: 54px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .squircle-icon-box svg {
+            width: 26px;
+            height: 26px;
+            stroke: var(--primary);
+            stroke-width: 2.2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .squircle-btn.primary .squircle-icon-box { background: var(--primary); }
+        .squircle-btn.primary .squircle-icon-box svg { stroke: white; }
+
+        .squircle-btn.accent .squircle-icon-box { background: var(--accent); }
+        .squircle-btn.accent .squircle-icon-box svg { stroke: white; }
+
+        .squircle-btn.soft .squircle-icon-box { background: var(--primary-soft); }
+
+        .squircle-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .input-group { margin-bottom: 14px; }
+        .input-group label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            padding-left: 4px;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="time"],
+        input[type="number"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            background-color: #fafbf9;
+            color: var(--text-dark);
+            transition: border-color 0.2s;
+        }
+
+        input:focus { outline: none; border-color: var(--primary); background-color: #ffffff; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        .geo-action-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .pill-action-btn {
+            background: var(--primary-soft);
+            color: var(--primary);
+            border: none;
+            border-radius: 18px;
+            padding: 12px 10px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .pill-action-btn svg {
+            width: 18px; height: 18px; stroke: var(--primary); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round;
+        }
+
+        .api-status { font-size: 0.78rem; color: var(--primary); margin-top: 6px; padding-left: 4px; min-height: 16px; }
+
+        .weather-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .weather-tile {
+            background: #fafbf9;
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            padding: 10px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        .weather-tile svg {
+            width: 24px; height: 24px; stroke: var(--text-muted); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round;
+        }
+        .weather-tile small { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
+        .weather-tile.active { background: var(--primary-soft); border-color: var(--primary); }
+        .weather-tile.active svg { stroke: var(--primary); }
+        .weather-tile.active small { color: var(--primary); }
+
+        .segment-card {
+            background: #f8faf7;
+            border: 1.5px solid var(--border);
+            border-radius: 18px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .segment-top { display: flex; gap: 8px; margin-bottom: 8px; }
+        .btn-remove-seg {
+            background: #fdeaea;
+            color: var(--danger);
+            border: none;
+            width: 46px;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .btn-add-seg {
+            width: 100%;
+            background: var(--primary-soft);
+            color: var(--primary);
+            border: 1.5px dashed var(--primary);
+            border-radius: 18px;
+            padding: 13px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .photo-big-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .photo-tile {
+            background: var(--primary-soft);
+            border: 2px dashed #9fc2ae;
+            border-radius: 22px;
+            padding: 16px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .photo-tile svg {
+            width: 26px; height: 26px; stroke: var(--primary); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round;
+        }
+        input[type="file"] { display: none; }
+
+        .photo-preview-row { display: flex; gap: 10px; overflow-x: auto; margin-top: 12px; padding-bottom: 4px; }
+        .preview-thumb {
+            position: relative;
+            width: 78px;
+            height: 78px;
+            border-radius: 18px;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid white;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        .preview-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .preview-thumb button {
+            position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
+            border-radius: 50%; border: none; background: rgba(0,0,0,0.65); color: white; font-size: 11px; cursor: pointer;
+        }
+
+        .btn-save-main {
+            width: 100%;
+            background: linear-gradient(135deg, #2e6b4e 0%, #3d8562 100%);
+            color: white;
+            border: none;
+            border-radius: 22px;
+            padding: 17px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            box-shadow: 0 8px 20px rgba(46, 107, 78, 0.28);
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .backup-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .btn-backup {
+            background: white;
+            border: 1.5px solid var(--border);
+            border-radius: 16px;
+            padding: 11px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: var(--shadow-soft);
+        }
+        .btn-backup svg {
+            width: 18px; height: 18px; stroke: var(--primary); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round;
+        }
+
+        .hike-item-card {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border);
+        }
+
+        .hike-item-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .hike-icon-avatar {
+            width: 48px; height: 48px; border-radius: 16px;
+            background: var(--primary-soft); color: var(--primary);
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .hike-icon-avatar svg {
+            width: 24px; height: 24px; stroke: var(--primary); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round;
+        }
+
+        .hike-title-box { flex: 1; }
+        .hike-title-box h3 { font-size: 1.05rem; font-weight: 800; color: var(--text-dark); }
+        .hike-title-box p { font-size: 0.82rem; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+        .hike-title-box p svg { width: 14px; height: 14px; stroke: var(--primary); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+        .km-pill {
+            background: var(--primary); color: white; padding: 6px 12px;
+            border-radius: 14px; font-weight: 800; font-size: 0.85rem; white-space: nowrap;
+        }
+
+        .hike-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .chip {
+            background: var(--bg-app); padding: 5px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; color: var(--text-muted);
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .chip svg { width: 13px; height: 13px; stroke: var(--text-muted); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+        .saved-seg-list { background: #f8faf7; border-radius: 16px; padding: 10px 12px; margin-bottom: 12px; font-size: 0.82rem; }
+        .saved-seg-list div { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #edf2ed; }
+        .saved-seg-list div:last-child { border-bottom: none; }
+
+        .saved-map-box { width: 100%; height: 200px; border-radius: 18px; margin-bottom: 12px; display: none; z-index: 1; }
+
+        .hike-card-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; flex-wrap: wrap; }
+        .btn-action-sm {
+            background: var(--primary-soft); color: var(--primary); border: none;
+            padding: 8px 12px; border-radius: 12px; font-weight: 700; font-size: 0.78rem; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-action-sm svg { width: 14px; height: 14px; stroke: var(--primary); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+        .btn-del-hike {
+            background: #fdeaea; color: var(--danger); border: none; width: 34px; height: 34px;
+            border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-del-hike svg { width: 16px; height: 16px; stroke: var(--danger); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+        /* Alsó navigáció */
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; max-width: 480px;
+            background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(12px);
+            border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(3, 1fr);
+            padding: 8px 12px 14px; z-index: 1000; border-top-left-radius: 24px; border-top-right-radius: 24px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+            background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px;
+        }
+
+        .nav-icon-wrap {
+            width: 46px; height: 34px; border-radius: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+        }
+
+        .nav-icon-wrap svg {
+            width: 22px; height: 22px; stroke: var(--text-muted); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round;
+        }
+
+        .nav-item.active .nav-icon-wrap {
+            background: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(46, 107, 78, 0.3);
+        }
+        .nav-item.active .nav-icon-wrap svg { stroke: white; }
+
+        .nav-item span { font-size: 0.72rem; font-weight: 700; }
+        .nav-item.active span { color: var(--primary); }
+
+        .custom-pin { font-size: 20px; text-align: center; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3)); }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <header class="app-header">
+        <div class="header-top">
+            <div class="app-brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                </div>
+                <div class="brand-text">
+                    <h1>ÖsvényNapló</h1>
+                    <p>Modern túra és séta app</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-stats">
+            <div class="hero-stat-pill">
+                <div class="hero-stat-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div>
+                    <div class="hero-stat-val" id="totalKmDisplay">0.0 km</div>
+                    <div class="hero-stat-lbl">Összes megtett</div>
+                </div>
+            </div>
+            <div class="hero-stat-pill">
+                <div class="hero-stat-icon">
+                    <svg viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+                </div>
+                <div>
+                    <div class="hero-stat-val" id="totalHikesDisplay">0 db</div>
+                    <div class="hero-stat-lbl">Teljesített túra</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 1. FÜL: ÉLŐ GPS & TÉRKÉP -->
+    <section id="tab-tracker" class="tab-view active">
+        <div class="section-heading">Élő útvonalkövetés</div>
+        <div class="app-card">
+            <div id="liveMap"></div>
+
+            <div class="live-readout">
+                <div class="live-km-big" id="liveGpsKm">0.00 km</div>
+                <div class="live-sub" id="liveGpsStatus">Készen áll az indulásra</div>
+            </div>
+
+            <div class="big-icon-grid">
+                <button type="button" class="squircle-btn primary" id="startGpsBtn" onclick="toggleLiveGps()">
+                    <div class="squircle-icon-box" id="startGpsIcon">
+                        <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </div>
+                    <span class="squircle-label" id="startGpsLabel">Mérés indítása</span>
+                </button>
+
+                <button type="button" class="squircle-btn accent" onclick="addRestPointOnMap()">
+                    <div class="squircle-icon-box">
+                        <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
+                    </div>
+                    <span class="squircle-label">Pihenőpont</span>
+                </button>
+
+                <button type="button" class="squircle-btn soft" onclick="finishAndGoToForm()">
+                    <div class="squircle-icon-box">
+                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <span class="squircle-label">Túra rögzítése</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. FÜL: ÚJ TÚRA RÖGZÍTÉSE -->
+    <section id="tab-add" class="tab-view">
+        <div class="section-heading">Túra részleteinek mentése</div>
+        <form id="hikeForm">
+            <div class="app-card">
+                <div class="input-group">
+                    <label for="hikeName">Túra vagy séta neve *</label>
+                    <input type="text" id="hikeName" placeholder="pl. Gerecse panoráma kör" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="hikeLocation">Helyszín / Település *</label>
+                    <input type="text" id="hikeLocation" placeholder="pl. Környe vagy Dobogókő" required>
+                    <div class="geo-action-pair">
+                        <button type="button" class="pill-action-btn" onclick="detectLocationAndWeather()">
+                            <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            Helyzetem
+                        </button>
+                        <button type="button" class="pill-action-btn" onclick="fetchWeatherByCityName()">
+                            <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                            Időjárás
+                        </button>
+                    </div>
+                    <div class="api-status" id="geoStatus"></div>
+                </div>
+
+                <div class="two-col input-group">
+                    <div>
+                        <label for="hikeDate">Dátum *</label>
+                        <input type="date" id="hikeDate" required>
+                    </div>
+                    <div>
+                        <label for="hikeTime">Indulás ideje</label>
+                        <input type="time" id="hikeTime">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Időjárás kiválasztása</label>
+                    <div class="weather-grid">
+                        <div class="weather-tile active" data-weather="☀️ Napos">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                            <small>Napos</small>
+                        </div>
+                        <div class="weather-tile" data-weather="⛅ Felhős">
+                            <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                            <small>Felhős</small>
+                        </div>
+                        <div class="weather-tile" data-weather="🌧️ Esős">
+                            <svg viewBox="0 0 24 24"><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg>
+                            <small>Esős</small>
+                        </div>
+                        <div class="weather-tile" data-weather="💨 Szeles">
+                            <svg viewBox="0 0 24 24"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19 12H2"/></svg>
+                            <small>Szeles</small>
+                        </div>
+                        <div class="weather-tile" data-weather="❄️ Havas">
+                            <svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/></svg>
+                            <small>Havas</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="two-col input-group" style="margin-bottom: 0;">
+                    <div>
+                        <label for="temperature">Hőmérséklet (°C)</label>
+                        <input type="number" step="0.5" id="temperature" placeholder="16">
+                    </div>
+                    <div>
+                        <label for="totalDistance">Teljes táv (km) *</label>
+                        <input type="number" id="totalDistance" step="0.01" min="0" placeholder="8.5" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="app-card">
+                <div class="input-group" style="margin-bottom: 0;">
+                    <label>Résztávok és pihenőidők</label>
+                    <div id="segmentsContainer"></div>
+                    <button type="button" class="btn-add-seg" onclick="addSegmentRow()">+ Szakasz vagy pihenő hozzáadása</button>
+                </div>
+            </div>
+
+            <div class="app-card">
+                <div class="input-group" style="margin-bottom: 0;">
+                    <label>Fotók a helyszínről</label>
+                    <div class="photo-big-pair">
+                        <label class="photo-tile" for="cameraInput">
+                            <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            Fotó készítése
+                        </label>
+                        <input type="file" id="cameraInput" accept="image/*" capture="environment">
+
+                        <label class="photo-tile" for="galleryInput">
+                            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            Galériából
+                        </label>
+                        <input type="file" id="galleryInput" accept="image/*" multiple>
+                    </div>
+                    <div class="photo-preview-row" id="photoPreview"></div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-save-main">💾 Túra mentése a naplóba</button>
+        </form>
+    </section>
+
+    <!-- 3. FÜL: MENTETT TÚRÁK (NAPLÓM) -->
+    <section id="tab-history" class="tab-view">
+        <div class="section-heading">Korábbi túráim & Biztonsági mentés</div>
+        
+        <div class="backup-bar">
+            <button type="button" class="btn-backup" onclick="exportJsonBackup()">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Export (JSON)
+            </button>
+            <label class="btn-backup" style="margin-bottom: 0;">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Importálás
+                <input type="file" id="importJsonInput" accept=".json" onchange="importJsonBackup(event)">
+            </label>
+        </div>
+
+        <div id="hikesList"></div>
+    </section>
+
+    <!-- Alsó navigáció -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-target="tab-tracker" onclick="switchTab('tab-tracker', this)">
+            <div class="nav-icon-wrap">
+                <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+            </div>
+            <span>Élő GPS</span>
+        </button>
+        <button class="nav-item" data-target="tab-add" onclick="switchTab('tab-add', this)">
+            <div class="nav-icon-wrap">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+            <span>Új túra</span>
+        </button>
+        <button class="nav-item" data-target="tab-history" onclick="switchTab('tab-history', this)">
+            <div class="nav-icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <span>Naplóm</span>
+        </button>
+    </nav>
+</div>
+
+<script>
+    const now = new Date();
+    document.getElementById('hikeDate').valueAsDate = now;
+    document.getElementById('hikeTime').value = now.toTimeString().slice(0, 5);
+
+    let selectedWeather = "☀️ Napos";
+    let uploadedPhotos = [];
+    let hikes = JSON.parse(localStorage.getItem('osvenyNaplo_hikes')) || [];
+
+    function switchTab(tabId, navBtn) {
+        document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        if (navBtn) {
+            navBtn.classList.add('active');
+        } else {
+            const targetBtn = document.querySelector(`.nav-item[data-target="${tabId}"]`);
+            if (targetBtn) targetBtn.classList.add('active');
+        }
+
+        if (tabId === 'tab-tracker') {
+            setTimeout(() => liveMap.invalidateSize(), 150);
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    const liveMap = L.map('liveMap', { zoomControl: false }).setView([47.545, 18.327], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(liveMap);
+
+    let routeCoords = [];
+    let restStops = [];
+    let routePolyline = L.polyline([], { color: '#2e6b4e', weight: 5, opacity: 0.9 }).addTo(liveMap);
+    let currentPosMarker = null;
+    let startMarker = null;
+    let restMarkersLayer = L.layerGroup().addTo(liveMap);
+
+    function createEmojiIcon(emoji) {
+        return L.divIcon({
+            className: 'custom-pin',
+            html: emoji,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+    }
+
+    let watchId = null;
+    let liveDistanceKm = 0;
+
+    function calculateHaversine(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    }
+
+    function toggleLiveGps() {
+        const btn = document.getElementById('startGpsBtn');
+        const iconContainer = document.getElementById('startGpsIcon');
+        const label = document.getElementById('startGpsLabel');
+        const statusEl = document.getElementById('liveGpsStatus');
+
+        if (watchId === null) {
+            if (!navigator.geolocation) {
+                alert('A GPS nem támogatott.');
+                return;
+            }
+            btn.className = 'squircle-btn accent';
+            iconContainer.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+            label.textContent = 'Szüneteltetés';
+            statusEl.textContent = '🛰️ GPS jel keresése...';
+
+            watchId = navigator.geolocation.watchPosition(
+                (pos) => {
+                    const { latitude, longitude, accuracy } = pos.coords;
+                    if (accuracy > 35) return;
+
+                    const newPoint = [latitude, longitude];
+
+                    if (!currentPosMarker) {
+                        currentPosMarker = L.marker(newPoint, { icon: createEmojiIcon('🥾') }).addTo(liveMap).bindPopup('Itt vagy');
+                        liveMap.setView(newPoint, 16);
+                    } else {
+                        currentPosMarker.setLatLng(newPoint);
+                    }
+
+                    if (routeCoords.length === 0) {
+                        routeCoords.push(newPoint);
+                        startMarker = L.marker(newPoint, { icon: createEmojiIcon('🚩') }).addTo(liveMap).bindPopup('Rajt');
+                        routePolyline.setLatLngs(routeCoords);
+                    } else {
+                        const prev = routeCoords[routeCoords.length - 1];
+                        const dist = calculateHaversine(prev[0], prev[1], latitude, longitude);
+
+                        if (dist > 0.005) {
+                            liveDistanceKm += dist;
+                            routeCoords.push(newPoint);
+                            routePolyline.setLatLngs(routeCoords);
+                            liveMap.panTo(newPoint);
+                            document.getElementById('liveGpsKm').textContent = `${liveDistanceKm.toFixed(2)} km`;
+                        }
+                    }
+                    statusEl.textContent = `🛰️ Aktív követés (±${Math.round(accuracy)} m)`;
+                },
+                () => { statusEl.textContent = '⚠️ Nincs GPS jel.'; },
+                { enableHighAccuracy: true, maximumAge: 2000 }
+            );
+        } else {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+            btn.className = 'squircle-btn primary';
+            iconContainer.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+            label.textContent = 'Folytatás';
+            statusEl.textContent = 'Mérés szüneteltetve';
+        }
+    }
+
+    function addRestPointOnMap() {
+        const recordRest = (lat, lon) => {
+            const restNum = restStops.length + 1;
+            const label = `${restNum}. Pihenő (${liveDistanceKm.toFixed(2)} km)`;
+            restStops.push({ lat, lon, label, kmAtPoint: liveDistanceKm });
+
+            L.marker([lat, lon], { icon: createEmojiIcon('☕') })
+                .addTo(restMarkersLayer)
+                .bindPopup(`<b>${label}</b>`).openPopup();
+
+            addSegmentRow(label, '', 10);
+        };
+
+        if (routeCoords.length > 0) {
+            const last = routeCoords[routeCoords.length - 1];
+            recordRest(last[0], last[1]);
+        } else if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                liveMap.setView([pos.coords.latitude, pos.coords.longitude], 15);
+                recordRest(pos.coords.latitude, pos.coords.longitude);
+            }, () => alert('Kapcsold be a helymeghatározást!'));
+        }
+    }
+
+    function finishAndGoToForm() {
+        if (liveDistanceKm > 0) {
+            document.getElementById('totalDistance').value = liveDistanceKm.toFixed(2);
+        }
+        switchTab('tab-add');
+    }
+
+    function selectWeatherOption(weatherLabel) {
+        document.querySelectorAll('.weather-tile').forEach(tile => {
+            if (tile.dataset.weather === weatherLabel) {
+                tile.classList.add('active');
+                selectedWeather = weatherLabel;
+            } else {
+                tile.classList.remove('active');
+            }
+        });
+    }
+
+    document.querySelectorAll('.weather-tile').forEach(tile => {
+        tile.addEventListener('click', () => selectWeatherOption(tile.dataset.weather));
+    });
+
+    function setGeoStatus(msg, isError = false) {
+        const el = document.getElementById('geoStatus');
+        el.textContent = msg;
+        el.style.color = isError ? 'var(--danger)' : 'var(--primary)';
+    }
+
+    function detectLocationAndWeather() {
+        if (!navigator.geolocation) return;
+        setGeoStatus('📍 Helyzet és időjárás lekérése...');
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude: lat, longitude: lon } = position.coords;
+                liveMap.setView([lat, lon], 15);
+                try {
+                    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=hu`);
+                    const geoData = await geoRes.json();
+                    const addr = geoData.address || {};
+                    const placeName = addr.village || addr.town || addr.city || addr.suburb || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                    document.getElementById('hikeLocation').value = placeName;
+                    await fetchOpenMeteo(lat, lon, placeName);
+                } catch (err) { setGeoStatus('Hiba az adatok lekérésekor.', true); }
+            },
+            () => setGeoStatus('Helymeghatározás sikertelen.', true),
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    async function fetchWeatherByCityName() {
+        const city = document.getElementById('hikeLocation').value.trim();
+        if (!city) { setGeoStatus('Írj be előbb egy településnevet!', true); return; }
+        setGeoStatus(`🔍 "${city}" időjárásának lekérése...`);
+
+        try {
+            const searchRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=hu&format=json`);
+            const searchData = await searchRes.json();
+            if (!searchData.results || searchData.results.length === 0) { setGeoStatus('Nem található ilyen település.', true); return; }
+            const loc = searchData.results[0];
+            liveMap.setView([loc.latitude, loc.longitude], 14);
+            await fetchOpenMeteo(loc.latitude, loc.longitude, loc.name);
+        } catch (err) { setGeoStatus('Hálózati hiba.', true); }
+    }
+
+    async function fetchOpenMeteo(lat, lon, displayName) {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data && data.current) {
+            const temp = data.current.temperature_2m;
+            const code = data.current.weather_code;
+            const wind = data.current.wind_speed_10m;
+            document.getElementById('temperature').value = Math.round(temp);
+
+            let mappedWeather = "☀️ Napos";
+            if ([71, 73, 75, 77, 85, 86].includes(code)) mappedWeather = "❄️ Havas";
+            else if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(code)) mappedWeather = "🌧️ Esős";
+            else if (wind > 30) mappedWeather = "💨 Szeles";
+            else if ([2, 3, 45, 48].includes(code)) mappedWeather = "⛅ Felhős";
+
+            selectWeatherOption(mappedWeather);
+            setGeoStatus(`✅ ${displayName}: ${mappedWeather}, ${temp} °C`);
+        }
+    }
+
+    function addSegmentRow(prefillName = '', prefillDist = '', prefillRest = '') {
+        const container = document.getElementById('segmentsContainer');
+        const card = document.createElement('div');
+        card.className = 'segment-card';
+        card.innerHTML = `
+            <div class="segment-top">
+                <input type="text" placeholder="Állomás / Szakasz neve" class="seg-name" value="${prefillName}">
+                <button type="button" class="btn-remove-seg" onclick="this.closest('.segment-card').remove(); recalculateDistance();">✕</button>
+            </div>
+            <div class="two-col">
+                <input type="number" step="0.01" min="0" placeholder="Táv (km)" class="seg-dist" value="${prefillDist}" oninput="recalculateDistance()">
+                <input type="number" min="0" placeholder="Pihenő (perc)" class="seg-rest" value="${prefillRest}">
+            </div>
+        `;
+        container.appendChild(card);
+    }
+
+    function recalculateDistance() {
+        const distInputs = document.querySelectorAll('.seg-dist');
+        let sum = 0;
+        let hasValue = false;
+        distInputs.forEach(input => {
+            const val = parseFloat(input.value);
+            if (!isNaN(val)) { sum += val; hasValue = true; }
+        });
+        if (hasValue) document.getElementById('totalDistance').value = sum.toFixed(2);
+    }
+
+    function handleFiles(files) {
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const maxW = 800;
+                    const scale = maxW / img.width;
+                    canvas.width = img.width > maxW ? maxW : img.width;
+                    canvas.height = img.width > maxW ? img.height * scale : img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    uploadedPhotos.push(canvas.toDataURL('image/jpeg', 0.7));
+                    renderPhotoPreviews();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    document.getElementById('cameraInput').addEventListener('change', (e) => handleFiles(e.target.files));
+    document.getElementById('galleryInput').addEventListener('change', (e) => handleFiles(e.target.files));
+
+    function renderPhotoPreviews() {
+        const preview = document.getElementById('photoPreview');
+        preview.innerHTML = '';
+        uploadedPhotos.forEach((src, index) => {
+            const item = document.createElement('div');
+            item.className = 'preview-thumb';
+            item.innerHTML = `<img src="${src}" alt="Fotó"><button type="button" onclick="removePhoto(${index})">✕</button>`;
+            preview.appendChild(item);
+        });
+    }
+
+    function removePhoto(index) { uploadedPhotos.splice(index, 1); renderPhotoPreviews(); }
+
+    document.getElementById('hikeForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+
+        const segments = [];
+        document.querySelectorAll('.segment-card').forEach(card => {
+            const name = card.querySelector('.seg-name').value.trim();
+            const dist = parseFloat(card.querySelector('.seg-dist').value) || 0;
+            const rest = parseInt(card.querySelector('.seg-rest').value) || 0;
+            if (name || dist > 0 || rest > 0) segments.push({ name: name || 'Szakasz', dist, rest });
+        });
+
+        const newHike = {
+            id: Date.now(),
+            name: document.getElementById('hikeName').value.trim(),
+            location: document.getElementById('hikeLocation').value.trim(),
+            date: document.getElementById('hikeDate').value,
+            time: document.getElementById('hikeTime').value,
+            weather: selectedWeather,
+            temp: document.getElementById('temperature').value,
+            distance: parseFloat(document.getElementById('totalDistance').value) || 0,
+            segments: segments,
+            photos: [...uploadedPhotos],
+            routeCoords: [...routeCoords],
+            restStops: [...restStops]
+        };
+
+        hikes.unshift(newHike);
+        saveAndRender();
+
+        document.getElementById('hikeForm').reset();
+        document.getElementById('hikeDate').valueAsDate = new Date();
+        document.getElementById('segmentsContainer').innerHTML = '';
+        setGeoStatus('');
+        uploadedPhotos = [];
+        renderPhotoPreviews();
+
+        liveDistanceKm = 0; routeCoords = []; restStops = [];
+        routePolyline.setLatLngs([]); restMarkersLayer.clearLayers();
+        if (startMarker) { liveMap.removeLayer(startMarker); startMarker = null; }
+        if (currentPosMarker) { liveMap.removeLayer(currentPosMarker); currentPosMarker = null; }
+        document.getElementById('liveGpsKm').textContent = '0.00 km';
+        document.getElementById('startGpsBtn').className = 'squircle-btn primary';
+        document.getElementById('startGpsIcon').innerHTML = '<svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+        document.getElementById('startGpsLabel').textContent = 'Mérés indítása';
+
+        switchTab('tab-history');
+    });
+
+    function downloadGpx(hikeId) {
+        const hike = hikes.find(h => h.id === hikeId);
+        if (!hike || !hike.routeCoords || hike.routeCoords.length === 0) {
+            alert('Ehhez a túrához nincs rögzített GPS útvonal.');
+            return;
+        }
+
+        let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+        gpxContent += `<gpx version="1.1" creator="ÖsvényNapló" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+        gpxContent += `  <metadata>\n`;
+        gpxContent += `    <name>${escapeXml(hike.name)}</name>\n`;
+        gpxContent += `    <desc>${escapeXml(hike.location)} - ${hike.date}</desc>\n`;
+        gpxContent += `  </metadata>\n`;
+        gpxContent += `  <trk>\n`;
+        gpxContent += `    <name>${escapeXml(hike.name)}</name>\n`;
+        gpxContent += `    <trkseg>\n`;
+
+        hike.routeCoords.forEach(pt => {
+            gpxContent += `      <trkpt lat="${pt[0]}" lon="${pt[1]}"></trkpt>\n`;
+        });
+
+        gpxContent += `    </trkseg>\n`;
+        gpxContent += `  </trk>\n`;
+
+        if (hike.restStops && hike.restStops.length > 0) {
+            hike.restStops.forEach(stop => {
+                gpxContent += `  <wpt lat="${stop.lat}" lon="${stop.lon}">\n`;
+                gpxContent += `    <name>${escapeXml(stop.label)}</name>\n`;
+                gpxContent += `  </wpt>\n`;
+            });
+        }
+
+        gpxContent += `</gpx>`;
+
+        const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${hike.name.replace(/[^a-zA-Z0-9éáűőúöüóíÉÁŰŐÚÖÜÓÍ]/g, '_')}_utvonal.gpx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function escapeXml(str) {
+        return str.replace(/[<>&'"]/g, (c) => {
+            switch (c) {
+                case '<': return '&lt;';
+                case '>': return '&gt;';
+                case '&': return '&amp;';
+                case '\'': return '&apos;';
+                case '"': return '&quot;';
+            }
+        });
+    }
+
+    function exportJsonBackup() {
+        if (hikes.length === 0) {
+            alert('Nincs mit exportálni, a napló üres.');
+            return;
+        }
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(hikes, null, 2));
+        const a = document.createElement('a');
+        a.href = dataStr;
+        a.download = `osvenynaplo_mentes_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function importJsonBackup(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (Array.isArray(importedData)) {
+                    if (confirm(`Sikeresen beolvasva ${importedData.length} túra. Szeretnéd egyesíteni a meglévő naplóddal?`)) {
+                        hikes = [...importedData, ...hikes];
+                        saveAndRender();
+                        alert('A túrák sikeresen importálva!');
+                    }
+                } else {
+                    alert('Hibás fájlformátum.');
+                }
+            } catch (err) {
+                alert('Nem sikerült feldolgozni a JSON fájlt.');
+            }
+            event.target.value = '';
+        };
+        reader.readAsText(file);
+    }
+
+    function deleteHike(id) {
+        if (confirm('Biztosan törlöd ezt a túrát?')) {
+            hikes = hikes.filter(h => h.id !== id);
+            saveAndRender();
+        }
+    }
+
+    const initializedMaps = {};
+    function toggleSavedMap(hikeId) {
+        const container = document.getElementById(`map-${hikeId}`);
+        if (!container) return;
+
+        if (container.style.display === 'block') {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        const hike = hikes.find(h => h.id === hikeId);
+        if (!hike) return;
+
+        if (!initializedMaps[hikeId]) {
+            const sMap = L.map(`map-${hikeId}`, { zoomControl: false });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(sMap);
+
+            const boundsPoints = [];
+            if (hike.routeCoords && hike.routeCoords.length > 0) {
+                L.polyline(hike.routeCoords, { color: '#2e6b4e', weight: 5 }).addTo(sMap);
+                boundsPoints.push(...hike.routeCoords);
+                L.marker(hike.routeCoords[0], { icon: createEmojiIcon('🚩') }).addTo(sMap).bindPopup('Rajt');
+                L.marker(hike.routeCoords[hike.routeCoords.length - 1], { icon: createEmojiIcon('🏁') }).addTo(sMap).bindPopup('Cél');
+            }
+            if (hike.restStops && hike.restStops.length > 0) {
+                hike.restStops.forEach(stop => {
+                    L.marker([stop.lat, stop.lon], { icon: createEmojiIcon('☕') }).addTo(sMap).bindPopup(stop.label);
+                    boundsPoints.push([stop.lat, stop.lon]);
+                });
+            }
+            if (boundsPoints.length > 0) {
+                sMap.fitBounds(L.latLngBounds(boundsPoints), { padding: [25, 25] });
+            } else {
+                sMap.setView([47.545, 18.327], 13);
+            }
+            initializedMaps[hikeId] = sMap;
+        } else {
+            initializedMaps[hikeId].invalidateSize();
+        }
+    }
+
+    function saveAndRender() {
+        try {
+            localStorage.setItem('osvenyNaplo_hikes', JSON.stringify(hikes));
+        } catch (err) { alert('A tárhely megtelt.'); }
+        renderHikes();
+    }
+
+    function renderHikes() {
+        const list = document.getElementById('hikesList');
+        list.innerHTML = '';
+        let totalKm = 0;
+
+        if (hikes.length === 0) {
+            list.innerHTML = `
+                <div class="app-card" style="text-align: center; padding: 36px 20px; color: var(--text-muted);">
+                    <div style="font-size: 2.8rem; margin-bottom: 10px;">🥾</div>
+                    <p style="font-weight: 700; color: var(--text-dark);">Még nincs rögzített túrád</p>
+                    <p style="font-size: 0.85rem; margin-top: 4px;">Indíts egy élő GPS mérést vagy rögzíts egy sétát az „Új túra” fülön!</p>
+                </div>
+            `;
+        }
+
+        hikes.forEach(hike => {
+            totalKm += hike.distance;
+            const hasMapData = (hike.routeCoords && hike.routeCoords.length > 0) || (hike.restStops && hike.restStops.length > 0);
+
+            const segmentsHtml = hike.segments.length > 0 ? `
+                <div class="saved-seg-list">
+                    ${hike.segments.map(s => `
+                        <div>
+                            <span>📍 ${s.name}</span>
+                            <span>${s.dist > 0 ? `<strong>${s.dist} km</strong>` : ''} ${s.rest > 0 ? `• ☕ ${s.rest}p` : ''}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            const photosHtml = hike.photos.length > 0 ? `
+                <div class="photo-preview-row" style="margin-bottom: 10px;">
+                    ${hike.photos.map(src => `<div class="preview-thumb"><img src="${src}" alt="Fotó"></div>`).join('')}
+                </div>
+            ` : '';
+
+            const card = document.createElement('div');
+            card.className = 'hike-item-card';
+            card.innerHTML = `
+                <div class="hike-item-top">
+                    <div class="hike-icon-avatar">
+                        <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                    </div>
+                    <div class="hike-title-box">
+                        <h3>${hike.name}</h3>
+                        <p><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${hike.location}</p>
+                    </div>
+                    <span class="km-pill">${hike.distance.toFixed(2)} km</span>
+                </div>
+                <div class="hike-chips">
+                    <span class="chip"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${hike.date} ${hike.time || ''}</span>
+                    <span class="chip">${hike.weather} ${hike.temp ? hike.temp + '°C' : ''}</span>
+                </div>
+                ${segmentsHtml}
+                ${photosHtml}
+                <div id="map-${hike.id}" class="saved-map-box"></div>
+                <div class="hike-card-actions">
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        ${hasMapData ? `<button type="button" class="btn-action-sm" onclick="toggleSavedMap(${hike.id})"><svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Térkép</button>` : ''}
+                        ${hasMapData ? `<button type="button" class="btn-action-sm" onclick="downloadGpx(${hike.id})"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>GPX</button>` : ''}
+                    </div>
+                    <button class="btn-del-hike" onclick="deleteHike(${hike.id})" title="Törlés">
+                        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    </button>
+                </div>
+            `;
+            list.appendChild(card);
+        });
+
+        document.getElementById('totalKmDisplay').textContent = `${totalKm.toFixed(1)} km`;
+        document.getElementById('totalHikesDisplay').textContent = `${hikes.length} db`;
+    }
+
+    renderHikes();
+</script>
+
+</body>
+</html>
